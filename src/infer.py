@@ -1,39 +1,71 @@
 import numpy as np
+import logging
+from datetime import datetime
 
-# Simulate Hailo SDK classes and behavior
+# ----------------------------
+# Simulated Hailo SDK Classes
+# ----------------------------
 class FakeHef:
     def __init__(self, path):
-        print(f"Loaded fake HEF model from: {path}")
+        logging.info(f"Loaded fake HEF model from: {path}")
     def __enter__(self): return self
     def __exit__(self, exc_type, exc_val, exc_tb): pass
 
 class FakeInferer:
     def __init__(self, hef):
-        print("Initialized fake Hailo inferer.")
+        logging.info("Initialized fake Hailo inferer.")
     def __enter__(self): return self
     def __exit__(self, exc_type, exc_val, exc_tb): pass
     def infer(self, input_tensor):
-        print(f"Running inference on input shape: {input_tensor.shape}")
-        # Fake prediction: pretend it's a classification with 10 classes
+        logging.info(f"Running inference on input with shape: {input_tensor.shape}")
+        # Simulate a classification output (10 classes)
         fake_output = np.random.rand(10)
+        fake_output /= np.sum(fake_output)  # Normalize to probabilities
         return [fake_output]
 
-def generate_fake_image():
-    # Simulate a 224x224 RGB image, normalized
-    img = np.random.rand(3, 224, 224).astype(np.float32)
-    img = np.expand_dims(img, axis=0)  # Shape: (1, 3, 224, 224)
-    return img
+# ----------------------------
+# Utilities
+# ----------------------------
+def generate_fake_image(batch_size=1):
+    """
+    Simulate a batch of RGB images (batch_size x 3 x 224 x 224)
+    """
+    return np.random.rand(batch_size, 3, 224, 224).astype(np.float32)
 
+def log_prediction(pred_probs):
+    """
+    Log top prediction and top-3 scores.
+    """
+    top_indices = np.argsort(pred_probs)[::-1][:3]
+    logging.info("Top Predictions:")
+    for rank, idx in enumerate(top_indices, start=1):
+        logging.info(f"#{rank}: Class {idx} — Confidence: {pred_probs[idx]:.4f}")
+
+    top_prediction = top_indices[0]
+    confidence = pred_probs[top_prediction]
+    print(f"\n🔮 Final Prediction: CLASS {top_prediction} with {confidence*100:.2f}% confidence")
+
+# ----------------------------
+# Main Execution
+# ----------------------------
 def main():
-    hef_path = "models/fake_model.hef"  # Not a real file
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(asctime)s] %(levelname)s: %(message)s',
+        datefmt='%H:%M:%S'
+    )
 
-    input_data = generate_fake_image()
+    logging.info("Starting fake Hailo AI inference pipeline...")
+
+    hef_path = "models/fake_model.hef"
+    input_tensor = generate_fake_image()
 
     with FakeHef(hef_path) as hef:
         with FakeInferer(hef) as inferer:
-            result = inferer.infer(input_data)[0]
-            predicted = np.argmax(result)
-            print(f"[FAKE] Predicted class index: {predicted}")
+            output_probs = inferer.infer(input_tensor)[0]
+            log_prediction(output_probs)
+
+    logging.info("Inference complete.")
 
 if __name__ == "__main__":
     main()
