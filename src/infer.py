@@ -61,7 +61,7 @@ def main():
     )
 
     hef_path = "models/fake_model.hef"
-    num_iterations =  10000 # Simulate N streaming frames
+    num_iterations =  100 # Simulate N streaming frames
 
     logging.info("Starting continuous inference pipeline...")
 
