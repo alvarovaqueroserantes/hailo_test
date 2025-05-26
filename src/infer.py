@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import time
 from datetime import datetime
 
 # ----------------------------
@@ -17,36 +18,40 @@ class FakeInferer:
     def __enter__(self): return self
     def __exit__(self, exc_type, exc_val, exc_tb): pass
     def infer(self, input_tensor):
-        logging.info(f"Running inference on input with shape: {input_tensor.shape}")
-        # Simulate a classification output (10 classes)
-        fake_output = np.random.rand(10)
-        fake_output /= np.sum(fake_output)  # Normalize to probabilities
-        return [fake_output]
+        logging.info(f"Running inference on input shape: {input_tensor.shape}")
+        time.sleep(0.2)  # Simulated latency
+        output = np.random.rand(10)
+        output /= np.sum(output)
+        return [output]
 
 # ----------------------------
 # Utilities
 # ----------------------------
-def generate_fake_image(batch_size=1):
+def generate_fake_image():
     """
-    Simulate a batch of RGB images (batch_size x 3 x 224 x 224)
+    Simulates one RGB image (1 x 3 x 224 x 224)
     """
-    return np.random.rand(batch_size, 3, 224, 224).astype(np.float32)
+    return np.random.rand(1, 3, 224, 224).astype(np.float32)
 
-def log_prediction(pred_probs):
-    """
-    Log top prediction and top-3 scores.
-    """
+def log_prediction(pred_probs, iteration):
     top_indices = np.argsort(pred_probs)[::-1][:3]
-    logging.info("Top Predictions:")
-    for rank, idx in enumerate(top_indices, start=1):
-        logging.info(f"#{rank}: Class {idx} — Confidence: {pred_probs[idx]:.4f}")
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    print(f"\n🕒 [{timestamp}] Iteration {iteration}")
+    print("Top-3 Predictions:")
+    for i, idx in enumerate(top_indices, start=1):
+        conf = pred_probs[idx] * 100
+        print(f"  #{i} - Class {idx} : {conf:.2f}%")
 
-    top_prediction = top_indices[0]
-    confidence = pred_probs[top_prediction]
-    print(f"\n🔮 Final Prediction: CLASS {top_prediction} with {confidence*100:.2f}% confidence")
+    top_class = top_indices[0]
+    confidence = pred_probs[top_class]
+    if confidence > 0.6:
+        print(f"Final Prediction: CLASS {top_class} with HIGH confidence ({confidence*100:.2f}%)")
+    else:
+        print(f"Final Prediction: CLASS {top_class} with LOW confidence ({confidence*100:.2f}%)")
 
 # ----------------------------
-# Main Execution
+# Main Execution Loop
 # ----------------------------
 def main():
     logging.basicConfig(
@@ -55,17 +60,25 @@ def main():
         datefmt='%H:%M:%S'
     )
 
-    logging.info("Starting fake Hailo AI inference pipeline...")
-
     hef_path = "models/fake_model.hef"
-    input_tensor = generate_fake_image()
+    num_iterations =  10000 # Simulate N streaming frames
+
+    logging.info("Starting continuous inference pipeline...")
 
     with FakeHef(hef_path) as hef:
         with FakeInferer(hef) as inferer:
-            output_probs = inferer.infer(input_tensor)[0]
-            log_prediction(output_probs)
+            for i in range(1, num_iterations + 1):
+                input_tensor = generate_fake_image()
+                start_time = time.time()
 
-    logging.info("Inference complete.")
+                output_probs = inferer.infer(input_tensor)[0]
+
+                elapsed = (time.time() - start_time) * 1000
+                logging.info(f"Inference completed in {elapsed:.2f} ms")
+                
+                log_prediction(output_probs, i)
+
+    logging.info("✅ Finished simulation.")
 
 if __name__ == "__main__":
     main()
